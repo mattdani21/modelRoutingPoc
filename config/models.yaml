@@ -1,0 +1,57 @@
+version: "2026-07-19.1"
+models:
+  - id: qwen36-27b-q8
+    display_name: Qwen3.6 27B Q8
+    provider: local
+    model: Qwen/Qwen3.6-27B
+    base_url: http://127.0.0.1:11434/v1
+    api_key_env: null
+    quantisation: Q8
+    runtime: llama.cpp or Ollama
+    hardware: 32 GB sandbox target. Confirm the final image size.
+    input_cost_per_million: 0.0
+    output_cost_per_million: 0.0
+    allowed_data: [public, internal, confidential, restricted]
+    enabled: true
+
+  - id: gpt-oss-20b-local
+    display_name: gpt-oss 20B
+    provider: local
+    model: openai/gpt-oss-20b
+    base_url: http://127.0.0.1:8000/v1
+    api_key_env: null
+    quantisation: MXFP4 reference checkpoint
+    runtime: vLLM
+    hardware: Workstation target. Confirm the runtime requirements.
+    input_cost_per_million: 0.0
+    output_cost_per_million: 0.0
+    allowed_data: [public, internal, confidential, restricted]
+    enabled: true
+
+  - id: deepseek-v4-flash
+    display_name: DeepSeek V4 Flash
+    provider: local
+    model: deepseek-ai/DeepSeek-V4-Flash
+    base_url: http://127.0.0.1:8001/v1
+    api_key_env: null
+    quantisation: Native checkpoint. Record the deployed format.
+    runtime: vLLM or SGLang after compatibility test
+    hardware: Multi-GPU or server target. It is not a 24 GB single-GPU model.
+    input_cost_per_million: 0.0
+    output_cost_per_million: 0.0
+    allowed_data: [public, internal, confidential, restricted]
+    enabled: true
+
+  - id: premium-frontier
+    display_name: Premium frontier comparator
+    provider: hosted
+    model: frontier-comparator
+    base_url: https://approved-ai-gateway.example/v1
+    api_key_env: PREMIUM_API_KEY
+    quantisation: Provider managed
+    runtime: Hosted API
+    hardware: Provider managed
+    input_cost_per_million: 2.0 # Illustrative. Replace this value before a real run.
+    output_cost_per_million: 10.0 # Illustrative. Replace this value before a real run.
+    allowed_data: [public, internal]
+    enabled: true
