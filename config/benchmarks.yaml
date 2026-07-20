@@ -1,0 +1,93 @@
+version: "2026-07-19.1"
+tasks:
+  - id: ACT-EAC2-001
+    department: Actuarial
+    team: Product Calculations
+    business_value: Prevent an incorrect EAC2 disclosure and reduce manual review time.
+    process: Review an EAC2 extension scenario.
+    task_class: controlled_reasoning
+    data_classification: internal
+    prompt: |
+      Review this synthetic EAC2 case.
+      The base term is 20 years.
+      The extension term is 5 years.
+      The disclosed total term is 20 years.
+      Return one JSON object.
+      Use these fields: risk, finding, required_action.
+    grader:
+      type: json_fields
+      fields: [risk, finding, required_action]
+    quality_gate:
+      deterministic_pass_required: true
+      minimum_human_score: 4
+      maximum_latency_ms: 8000
+
+  - id: SYS-CTRL-001
+    department: Actuarial Systems
+    team: Systems Control
+    business_value: Find calculation differences before a release reaches production.
+    process: Triage an ACE-to-MTS control difference.
+    task_class: structured_triage
+    data_classification: confidential
+    prompt: |
+      Review this synthetic control result.
+      ACE value: 102.40.
+      MTS value: 100.00.
+      The allowed relative difference is 2.00 percent.
+      Return one JSON object.
+      Use these fields: relative_difference_percent, status, investigation_priority.
+    grader:
+      type: json_fields
+      fields: [relative_difference_percent, status, investigation_priority]
+    quality_gate:
+      deterministic_pass_required: true
+      minimum_human_score: 4
+      maximum_latency_ms: 5000
+
+  - id: QE-TEST-001
+    department: Actuarial Systems
+    team: Test Analysis
+    business_value: Reduce test design time and improve control coverage.
+    process: Draft tests for an EAC2 rule change.
+    task_class: test_design
+    data_classification: internal
+    prompt: |
+      Draft a compact test plan for this synthetic rule.
+      A policy can have a base term and one extension term.
+      The EAC2 letter must show the total term.
+      Return one JSON object.
+      Use these fields: happy_path, boundary_case, negative_case, expected_control.
+    grader:
+      type: json_fields
+      fields: [happy_path, boundary_case, negative_case, expected_control]
+    quality_gate:
+      deterministic_pass_required: true
+      minimum_human_score: 4
+      maximum_latency_ms: 8000
+
+  - id: LOG-GREP-001
+    department: Actuarial Systems
+    team: Production Support
+    business_value: Reduce log investigation time from minutes to seconds.
+    process: Find the relevant policy errors in a service log.
+    task_class: log_extraction
+    data_classification: confidential
+    prompt: |
+      Read the synthetic log lines.
+      Return only the two ERROR lines that contain policy POL123.
+      Keep their original order.
+
+      INFO request=1 policy=POL123 status=started
+      ERROR request=1 policy=POL123 code=E401 source=ACE
+      ERROR request=2 policy=POL999 code=E500 source=MTS
+      WARN request=1 policy=POL123 retry=true
+      ERROR request=1 policy=POL123 code=E402 source=ROUTER
+    grader:
+      type: contains_all
+      values:
+        - "ERROR request=1 policy=POL123 code=E401 source=ACE"
+        - "ERROR request=1 policy=POL123 code=E402 source=ROUTER"
+    quality_gate:
+      deterministic_pass_required: true
+      minimum_human_score: 4
+      maximum_latency_ms: 3000

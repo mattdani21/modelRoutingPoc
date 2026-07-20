@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tessera Model Gate</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="mark">T</span><span>Tessera Model Gate</span></div>
+    <div class="status"><span class="dot"></span> POC control plane</div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">LOCAL AI · QUALITY BEFORE COST</p>
+        <h1>Use the smallest model<br>that clears the gate.</h1>
+        <p class="lede">Compare models on work that matters. Keep a full decision record. Change the model without changing the process.</p>
+      </div>
+      <div class="hero-card">
+        <div class="metric"><span id="task-count">4</span><small>business tasks</small></div>
+        <div class="metric"><span id="model-count">4</span><small>model routes</small></div>
+        <div class="metric"><span>1–5</span><small>human review</small></div>
+      </div>
+    </section>
+
+    <section class="control-panel">
+      <div class="section-title">
+        <div><p class="eyebrow">BENCHMARK RUN</p><h2>Select a task and model set</h2></div>
+        <span id="mode-badge" class="badge">Demo data</span>
+      </div>
+      <div class="selectors">
+        <div><label>Business task</label><select id="task-select"></select></div>
+        <div><label>Model set</label><select id="model-select"><option value="all">All enabled models</option><option value="local">Local models only</option></select></div>
+        <button id="run-button">Run benchmark <span>→</span></button>
+      </div>
+    </section>
+
+    <section class="summary-grid">
+      <article><p>Quality pass rate</p><strong id="pass-rate">—</strong><small>Deterministic gate</small></article>
+      <article><p>Best eligible route</p><strong id="best-model">—</strong><small>After the quality gate</small></article>
+      <article><p>Fastest response</p><strong id="fastest">—</strong><small>Wall-clock latency</small></article>
+      <article><p>Data control</p><strong id="data-control">—</strong><small>Allowed route check</small></article>
+    </section>
+
+    <section class="results-panel">
+      <div class="section-title">
+        <div><p class="eyebrow">EVIDENCE LEDGER</p><h2>Model comparison</h2></div>
+        <button class="ghost" id="export-button">Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Model</th><th>Gate</th><th>Human score</th><th>Latency</th><th>Tokens</th><th>Cost / 1,000</th><th>Data note</th></tr></thead>
+          <tbody id="results-body"><tr><td colspan="7" class="empty">Run the benchmark to create evidence.</td></tr></tbody>
+        </table>
+      </div>
+      <p class="footnote">A pass does not approve a model for production. Security, legal, actuarial, and operational controls remain required.</p>
+    </section>
+
+    <section class="decision-rule">
+      <p class="eyebrow">ROUTING POLICY</p>
+      <h2>The benchmark controls the route.</h2>
+      <div class="flow">
+        <div><span>01</span><b>Classify</b><small>Task and data</small></div><i>→</i>
+        <div><span>02</span><b>Test</b><small>Automated gates</small></div><i>→</i>
+        <div><span>03</span><b>Review</b><small>Expert score</small></div><i>→</i>
+        <div><span>04</span><b>Route</b><small>Best eligible model</small></div>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
