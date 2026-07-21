@@ -17,10 +17,15 @@ The POC includes these functions:
 - Store results in SQLite.
 - Export the evidence ledger as CSV.
 - Block a route that is not approved for the task data class.
+- Block a live run until the model has an approval flag and artifact digest.
+- Keep demo evidence separate from live evidence.
+- Require an identified human reviewer before a quality decision.
 
 The POC does not approve a model for production.
 The POC does not send real client data.
 The POC does not replace actuarial review.
+The POC binds to loopback by default.
+Do not bind it to a shared interface until authentication and access controls are added.
 
 ## Start the service
 
@@ -39,6 +44,8 @@ Select **Run benchmark**.
 
 The dashboard uses demo responses when it sends `demo: true`.
 Change this value to `false` in `web/app.js` when the model routes are ready.
+Set `approved_for_live: true` only after approval.
+Record the deployed artifact digest before a live run.
 
 You can also open `web/index.html` directly.
 The page will use standalone demo data when the Rust service is not available.
@@ -53,6 +60,8 @@ Set the runtime and hardware.
 Set the allowed data classes.
 Set the token price when the route has a token price.
 Replace the sample hosted gateway and prices before a real run.
+Do not enter zero when a cost is unknown.
+Use `null` until the cost basis is measured.
 
 Do not put an API key in the YAML file.
 Put the environment variable name in `api_key_env`.
@@ -88,3 +97,19 @@ Use this order:
 5. Select the lowest total cost among the eligible models.
 
 Do not rank a failed model above a passed model because it is cheaper.
+Do not promote a result with the `demo_only` state.
+
+## Test the project
+
+Run these commands:
+
+```bash
+cargo check --all-targets
+cargo test --all-targets
+node --check web/logic.js
+node --check web/app.js
+node tests/web_logic.test.js
+node tests/html_contract.test.js
+```
+
+GitHub Actions runs the same checks on each pull request and each push to `main`.

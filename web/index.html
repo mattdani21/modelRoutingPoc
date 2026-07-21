@@ -32,9 +32,14 @@
         <span id="mode-badge" class="badge">Demo data</span>
       </div>
       <div class="selectors">
-        <div><label>Business task</label><select id="task-select"></select></div>
-        <div><label>Model set</label><select id="model-select"><option value="all">All enabled models</option><option value="local">Local models only</option></select></div>
+        <div><label for="task-select">Business task</label><select id="task-select"></select></div>
+        <div><label for="model-select">Model set</label><select id="model-select"><option value="all">All approved routes</option><option value="local">Local routes only</option></select></div>
         <button id="run-button">Run benchmark <span>→</span></button>
+      </div>
+      <div id="task-context" class="task-context" aria-live="polite"></div>
+      <div class="reviewer-control">
+        <label for="reviewer-input">Reviewer name or staff ID</label>
+        <input id="reviewer-input" maxlength="80" placeholder="Required before a human score">
       </div>
     </section>
 
@@ -52,8 +57,8 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Model</th><th>Gate</th><th>Human score</th><th>Latency</th><th>Tokens</th><th>Cost / 1,000</th><th>Data note</th></tr></thead>
-          <tbody id="results-body"><tr><td colspan="7" class="empty">Run the benchmark to create evidence.</td></tr></tbody>
+          <thead><tr><th>Model</th><th>Test</th><th>Decision</th><th>Human score</th><th>Latency</th><th>Tokens</th><th>Cost / 1,000</th><th>Data note</th></tr></thead>
+          <tbody id="results-body"><tr><td colspan="8" class="empty">Run the benchmark to create evidence.</td></tr></tbody>
         </table>
       </div>
       <p class="footnote">A pass does not approve a model for production. Security, legal, actuarial, and operational controls remain required.</p>
@@ -70,6 +75,7 @@
       </div>
     </section>
   </main>
+  <script src="logic.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

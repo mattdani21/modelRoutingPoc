@@ -1,6 +1,7 @@
-version: "2026-07-19.1"
+version: "2026-07-21.1"
 tasks:
   - id: ACT-EAC2-001
+    prompt_version: "1.1"
     department: Actuarial
     team: Product Calculations
     business_value: Prevent an incorrect EAC2 disclosure and reduce manual review time.
@@ -12,17 +13,21 @@ tasks:
       The base term is 20 years.
       The extension term is 5 years.
       The disclosed total term is 20 years.
-      Return one JSON object.
-      Use these fields: risk, finding, required_action.
+      Return this JSON shape with no extra fields:
+      {"risk":"high|low","finding_code":"DISCLOSED_TERM_MISMATCH|TERM_MATCH","required_action_code":"CORRECT_TOTAL_TERM_BEFORE_ISSUE|NONE"}
     grader:
-      type: json_fields
-      fields: [risk, finding, required_action]
+      type: json_equals
+      expected:
+        risk: high
+        finding_code: DISCLOSED_TERM_MISMATCH
+        required_action_code: CORRECT_TOTAL_TERM_BEFORE_ISSUE
     quality_gate:
       deterministic_pass_required: true
       minimum_human_score: 4
       maximum_latency_ms: 8000
 
   - id: SYS-CTRL-001
+    prompt_version: "1.1"
     department: Actuarial Systems
     team: Systems Control
     business_value: Find calculation differences before a release reaches production.
@@ -34,17 +39,22 @@ tasks:
       ACE value: 102.40.
       MTS value: 100.00.
       The allowed relative difference is 2.00 percent.
-      Return one JSON object.
-      Use these fields: relative_difference_percent, status, investigation_priority.
+      Calculate the absolute relative difference against MTS.
+      Return this JSON shape with no extra fields:
+      {"relative_difference_percent":0.0,"status":"within_tolerance|outside_tolerance","investigation_priority":"normal|high"}
     grader:
-      type: json_fields
-      fields: [relative_difference_percent, status, investigation_priority]
+      type: json_equals
+      expected:
+        relative_difference_percent: 2.4
+        status: outside_tolerance
+        investigation_priority: high
     quality_gate:
       deterministic_pass_required: true
       minimum_human_score: 4
       maximum_latency_ms: 5000
 
   - id: QE-TEST-001
+    prompt_version: "1.0"
     department: Actuarial Systems
     team: Test Analysis
     business_value: Reduce test design time and improve control coverage.
@@ -66,6 +76,7 @@ tasks:
       maximum_latency_ms: 8000
 
   - id: LOG-GREP-001
+    prompt_version: "1.1"
     department: Actuarial Systems
     team: Production Support
     business_value: Reduce log investigation time from minutes to seconds.
@@ -83,8 +94,9 @@ tasks:
       WARN request=1 policy=POL123 retry=true
       ERROR request=1 policy=POL123 code=E402 source=ROUTER
     grader:
-      type: contains_all
-      values:
+      type: exact_lines
+      ignore_order: false
+      expected:
         - "ERROR request=1 policy=POL123 code=E401 source=ACE"
         - "ERROR request=1 policy=POL123 code=E402 source=ROUTER"
     quality_gate:

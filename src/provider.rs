@@ -1,6 +1,6 @@
 use std::{env, time::Instant};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -10,8 +10,8 @@ use crate::domain::{BenchmarkTask, GraderSpec, ModelConfig};
 pub struct ModelAnswer {
     pub text: String,
     pub latency_ms: u64,
-    pub tokens_in: u64,
-    pub tokens_out: u64,
+    pub tokens_in: Option<u64>,
+    pub tokens_out: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -30,8 +30,7 @@ struct Message<'a> {
 #[derive(Deserialize)]
 struct ChatResponse {
     choices: Vec<Choice>,
-    #[serde(default)]
-    usage: Usage,
+    usage: Option<Usage>,
 }
 
 #[derive(Deserialize)]
@@ -44,7 +43,7 @@ struct AnswerMessage {
     content: String,
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Deserialize)]
 struct Usage {
     #[serde(default)]
     prompt_tokens: u64,
@@ -72,18 +71,22 @@ pub async fn call_model(client: &Client, model: &ModelConfig, task: &BenchmarkTa
     let started = Instant::now();
     let response = request.send().await?.error_for_status()?;
     let parsed: ChatResponse = response.json().await?;
+    let (tokens_in, tokens_out) = parsed
+        .usage
+        .map(|usage| (Some(usage.prompt_tokens), Some(usage.completion_tokens)))
+        .unwrap_or((None, None));
     let answer = parsed.choices.into_iter().next().context("The provider returned no answer")?;
 
     Ok(ModelAnswer {
         text: answer.message.content,
         latency_ms: started.elapsed().as_millis() as u64,
-        tokens_in: parsed.usage.prompt_tokens,
-        tokens_out: parsed.usage.completion_tokens,
+        tokens_in,
+        tokens_out,
     })
 }
 
-pub fn demo_answer(task: &BenchmarkTask, model_index: usize) -> Result<ModelAnswer> {
-    let text = match &task.grader {
+pub fn demo_answer(task: &BenchmarkTask, model_id: &str, model_index: usize) -> Result<ModelAnswer> {
+    let mut text = match &task.grader {
         GraderSpec::Exact { expected } => expected.clone(),
         GraderSpec::ContainsAll { values } => values.join("; "),
         GraderSpec::Regex { .. } => "ERROR policy=POL123 source=ACE severity=high".into(),
@@ -91,14 +94,18 @@ pub fn demo_answer(task: &BenchmarkTask, model_index: usize) -> Result<ModelAnsw
             let object = fields.iter().map(|field| (field.clone(), serde_json::Value::String("demo".into()))).collect();
             serde_json::to_string(&serde_json::Value::Object(object))?
         }
+        GraderSpec::JsonEquals { expected } => serde_json::to_string(expected)?,
+        GraderSpec::ExactLines { expected, .. } => expected.join("\n"),
     };
-    if model_index > 20 {
-        bail!("The demo model index is invalid");
+
+    // Demo data must show both pass and fail states. It is not model evidence.
+    if task.id == "ACT-EAC2-001" && model_id == "gpt-oss-20b-local" {
+        text = r#"{"finding_code":"TERM_MATCH","required_action_code":"NONE","risk":"low"}"#.into();
     }
     Ok(ModelAnswer {
         text,
         latency_ms: 680 + (model_index as u64 * 410) + (task.id.len() as u64 * 7),
-        tokens_in: 180 + task.prompt.len() as u64 / 4,
-        tokens_out: 70 + model_index as u64 * 9,
+        tokens_in: Some(180 + task.prompt.len() as u64 / 4),
+        tokens_out: Some(70 + model_index as u64 * 9),
     })
 }

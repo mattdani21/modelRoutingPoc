@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Check Rust
+        run: cargo check --all-targets
+      - name: Test Rust
+        run: cargo test --all-targets
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check browser code
+        run: node --check web/logic.js && node --check web/app.js
+      - name: Test browser policy
+        run: node tests/web_logic.test.js && node tests/html_contract.test.js
