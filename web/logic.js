@@ -22,7 +22,8 @@
 
   function selectBestEligible(results) {
     return results
-      .filter(result => gateStatus(result) === 'eligible')
+      // A regression against the champion blocks promotion regardless of cost.
+      .filter(result => gateStatus(result) === 'eligible' && !result.regressed_vs_champion)
       .slice()
       .sort((a, b) => {
         const costA = a.estimated_cost_per_1000_tasks == null ? Number.POSITIVE_INFINITY : a.estimated_cost_per_1000_tasks;
@@ -31,11 +32,33 @@
       })[0] || null;
   }
 
+  // Group task entries into their task classes. Each class shares department,
+  // team, process, and data class metadata across its test cases.
+  function groupByClass(tasks) {
+    const groups = new Map();
+    for (const task of tasks) {
+      const key = task.task_class;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          task_class: key,
+          department: task.department,
+          team: task.team,
+          process: task.process,
+          business_value: task.business_value,
+          data_classification: task.data_classification,
+          cases: [],
+        });
+      }
+      groups.get(key).cases.push(task);
+    }
+    return [...groups.values()];
+  }
+
   function csvCell(value) {
     let text = String(value ?? '');
     if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
     return `"${text.replaceAll('"', '""')}"`;
   }
 
-  return { isAllowedForTask, gateStatus, selectBestEligible, csvCell };
+  return { isAllowedForTask, gateStatus, selectBestEligible, csvCell, groupByClass };
 });

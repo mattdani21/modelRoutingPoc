@@ -26,3 +26,5 @@ jobs:
         run: node --check web/logic.js && node --check web/app.js
       - name: Test browser policy
         run: node tests/web_logic.test.js && node tests/html_contract.test.js
+      - name: Benchmark pack matches generator
+        run: node scripts/generate_benchmarks.mjs && git diff --exit-code config/benchmarks.yaml
