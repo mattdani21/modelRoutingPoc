@@ -1,17 +1,26 @@
 const fallbackTasks = [
-  {id:'ACT-EAC2-001',department:'Actuarial',team:'Product Calculations',process:'Review an EAC2 extension scenario.',task_class:'controlled_reasoning',data_classification:'internal'},
-  {id:'SYS-CTRL-001',department:'Actuarial Systems',team:'Systems Control',process:'Triage an ACE-to-MTS control difference.',task_class:'structured_triage',data_classification:'confidential'},
-  {id:'QE-TEST-001',department:'Actuarial Systems',team:'Test Analysis',process:'Draft tests for an EAC2 rule change.',task_class:'test_design',data_classification:'internal'},
-  {id:'LOG-GREP-001',department:'Actuarial Systems',team:'Production Support',process:'Find the relevant policy errors in a service log.',task_class:'log_extraction',data_classification:'confidential'}
+  {id:'ACT-EAC2-001',prompt_version:'1.1',department:'Actuarial',team:'Product Calculations',business_value:'Prevent an incorrect EAC2 disclosure and reduce manual review time.',process:'Review an EAC2 extension scenario.',task_class:'controlled_reasoning',data_classification:'internal',quality_gate:{deterministic_pass_required:true,minimum_human_score:4,maximum_latency_ms:8000}},
+  {id:'SYS-CTRL-001',prompt_version:'1.1',department:'Actuarial Systems',team:'Systems Control',business_value:'Find calculation differences before a release reaches production.',process:'Triage an ACE-to-MTS control difference.',task_class:'structured_triage',data_classification:'confidential',quality_gate:{deterministic_pass_required:true,minimum_human_score:4,maximum_latency_ms:5000}},
+  {id:'QE-TEST-001',prompt_version:'1.0',department:'Actuarial Systems',team:'Test Analysis',business_value:'Reduce test design time and improve control coverage.',process:'Draft tests for an EAC2 rule change.',task_class:'test_design',data_classification:'internal',quality_gate:{deterministic_pass_required:true,minimum_human_score:4,maximum_latency_ms:8000}},
+  {id:'LOG-GREP-001',prompt_version:'1.1',department:'Actuarial Systems',team:'Production Support',business_value:'Reduce log investigation time from minutes to seconds.',process:'Find the relevant policy errors in a service log.',task_class:'log_extraction',data_classification:'confidential',quality_gate:{deterministic_pass_required:true,minimum_human_score:4,maximum_latency_ms:3000}}
 ];
 const fallbackModels = [
-  {id:'qwen36-27b-q8',display_name:'Qwen3.6 27B Q8',provider:'local',quantisation:'Q8',runtime:'llama.cpp',hardware:'32 GB sandbox'},
-  {id:'gpt-oss-20b-local',display_name:'gpt-oss 20B',provider:'local',quantisation:'MXFP4',runtime:'vLLM',hardware:'Workstation'},
-  {id:'deepseek-v4-flash',display_name:'DeepSeek V4 Flash',provider:'local',quantisation:'native',runtime:'vLLM',hardware:'Server'},
-  {id:'premium-frontier',display_name:'Premium frontier comparator',provider:'hosted',quantisation:'managed',runtime:'Hosted API',hardware:'Provider managed'}
+  {id:'qwen36-27b-q8',display_name:'Qwen3.6 27B Q8',provider:'local',model:'Qwen/Qwen3.6-27B',quantisation:'Q8',runtime:'llama.cpp',hardware:'32 GB sandbox',license:'Apache-2.0',registry_source:'Hugging Face',allowed_data:['public','internal','confidential','restricted']},
+  {id:'gpt-oss-20b-local',display_name:'gpt-oss 20B',provider:'local',model:'openai/gpt-oss-20b',quantisation:'MXFP4',runtime:'vLLM',hardware:'Workstation',license:'Apache-2.0',registry_source:'Hugging Face',allowed_data:['public','internal','confidential','restricted']},
+  {id:'deepseek-v4-flash',display_name:'DeepSeek V4 Flash',provider:'local',model:'deepseek-ai/DeepSeek-V4-Flash',quantisation:'native',runtime:'vLLM',hardware:'Server',license:'MIT',registry_source:'Hugging Face',allowed_data:['public','internal','confidential','restricted']},
+  {id:'premium-frontier',display_name:'Premium frontier comparator',provider:'hosted',model:'frontier-comparator',quantisation:'managed',runtime:'Hosted API',hardware:'Provider managed',license:'Provider contract required',registry_source:'Approved company AI gateway',allowed_data:['public','internal']}
 ];
-let tasks = fallbackTasks, models = fallbackModels, results = [], apiReady = false;
+
+const logic = ModelGateLogic;
+let tasks = fallbackTasks;
+let models = fallbackModels;
+let results = [];
+let apiReady = false;
 const taskSelect = document.querySelector('#task-select');
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
+}
 
 async function loadCatalogs() {
   try {
@@ -20,85 +29,158 @@ async function loadCatalogs() {
     tasks = (await taskResponse.json()).tasks;
     models = (await modelResponse.json()).models.filter(model => model.enabled);
     apiReady = true;
-    document.querySelector('#mode-badge').textContent = 'Live control plane';
+    document.querySelector('#mode-badge').textContent = 'API · synthetic demo';
   } catch (_) {
-    document.querySelector('#mode-badge').textContent = 'Standalone demo';
+    document.querySelector('#mode-badge').textContent = 'Standalone synthetic demo';
   }
   document.querySelector('#task-count').textContent = tasks.length;
   document.querySelector('#model-count').textContent = models.length;
-  taskSelect.innerHTML = tasks.map(task => `<option value="${task.id}">${task.department} · ${task.process}</option>`).join('');
+  taskSelect.replaceChildren(...tasks.map(task => {
+    const option = document.createElement('option');
+    option.value = task.id;
+    option.textContent = `${task.department} · ${task.process}`;
+    return option;
+  }));
+  updateTaskContext();
+}
+
+function updateTaskContext() {
+  const task = tasks.find(item => item.id === taskSelect.value) || tasks[0];
+  if (!task) return;
+  const eligibleRoutes = models.filter(model => logic.isAllowedForTask(model, task)).length;
+  document.querySelector('#task-context').textContent = `${task.team} · ${task.business_value} · Data class: ${task.data_classification} · Approved routes in this registry: ${eligibleRoutes}`;
 }
 
 function makeDemoResults(task, selectedModels) {
+  const evaluationId = crypto.randomUUID ? crypto.randomUUID() : `demo-${Date.now()}`;
   return selectedModels.map((model, index) => {
     const pass = !(task.id === 'ACT-EAC2-001' && model.id === 'gpt-oss-20b-local');
     const tokensIn = 220 + task.id.length * 4;
     const tokensOut = 58 + index * 21;
-    return {
+    const result = {
       run_id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${index}`,
-      task_id: task.id, model_id:model.id, task_class:task.task_class,
-      deterministic_pass:pass, human_quality_score:null,
-      latency_ms:720 + index * 490 + task.id.length * 11,
-      tokens_in:tokensIn, tokens_out:tokensOut,
-      estimated_cost_per_1000_tasks:model.provider === 'hosted' ? ((tokensIn*2+tokensOut*10)/1000) : 0,
+      evaluation_id:evaluationId, created_at:new Date().toISOString(), execution_mode:'demo', execution_status:'completed',
+      benchmark_version:'standalone-demo', model_catalog_version:'standalone-demo',
+      task_id:task.id, prompt_version:task.prompt_version, department:task.department, team:task.team,
+      business_value:task.business_value, process:task.process, task_class:task.task_class,
+      model_id:model.id, provider_model_id:model.model, quantisation:model.quantisation, runtime:model.runtime,
+      hardware:model.hardware, license:model.license, registry_source:model.registry_source, artifact_digest:null,
+      deterministic_pass:pass, grader_detail:pass?'Synthetic deterministic pass':'Synthetic deterministic failure',
+      quality_gate:task.quality_gate, human_quality_score:null, reviewer:null, reviewed_at:null,
+      latency_ms:720 + index * 490 + task.id.length * 11, tokens_in:tokensIn, tokens_out:tokensOut,
+      estimated_cost_per_1000_tasks:model.provider === 'hosted' ? ((tokensIn*2+tokensOut*10)/1000) : null,
       data_classification:task.data_classification,
-      sovereignty_note:model.provider === 'local' ? 'Data stays in the approved local environment' : 'Contract and region check required'
+      sovereignty_note:model.provider === 'local' ? 'Declared local route. Endpoint location is not independently verified.' : 'Hosted route. Contract and region check required.'
     };
+    result.gate_status = logic.gateStatus(result);
+    return result;
   });
 }
 
 async function runBenchmark() {
-  const button = document.querySelector('#run-button'); button.disabled = true; button.textContent = 'Running…';
+  const button = document.querySelector('#run-button');
+  button.disabled = true;
+  button.textContent = 'Running…';
   const task = tasks.find(item => item.id === taskSelect.value);
   const scope = document.querySelector('#model-select').value;
-  const selectedModels = models.filter(model => scope === 'all' || model.provider === 'local');
+  const selectedModels = models.filter(model => logic.isAllowedForTask(model, task) && (scope === 'all' || model.provider === 'local'));
   try {
+    if (!selectedModels.length) throw new Error('No approved model route is available for this task and data class.');
     if (apiReady) {
       const response = await fetch('/api/runs', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task_ids:[task.id],model_ids:selectedModels.map(model=>model.id),demo:true})});
       if (!response.ok) throw new Error((await response.json()).error || 'Run failed');
       results = await response.json();
     } else {
-      await new Promise(resolve => setTimeout(resolve, 700));
+      await new Promise(resolve => setTimeout(resolve, 300));
       results = makeDemoResults(task, selectedModels);
     }
+    results.forEach(result => { result.gate_status = logic.gateStatus(result); });
     renderResults(task);
-  } catch (error) { alert(error.message); }
-  finally { button.disabled = false; button.innerHTML = 'Run benchmark <span>→</span>'; }
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+    button.innerHTML = 'Run benchmark <span>→</span>';
+  }
+}
+
+function decisionLabel(status) {
+  return status === 'eligible' ? 'Eligible' : status === 'demo_only' ? 'Demo only' : status === 'rejected' ? 'Rejected' : 'Awaiting review';
 }
 
 function renderResults(task) {
   const body = document.querySelector('#results-body');
   body.innerHTML = results.map(result => {
     const model = models.find(item => item.id === result.model_id) || {display_name:result.model_id};
-    return `<tr><td><b>${model.display_name}</b><br><small>${model.quantisation || ''} · ${model.runtime || ''}</small></td>
+    const status = logic.gateStatus(result);
+    const latency = result.latency_ms == null ? 'Not reported' : `${Number(result.latency_ms).toLocaleString()} ms`;
+    const tokens = result.tokens_in == null || result.tokens_out == null ? 'Not reported' : `${Number(result.tokens_in).toLocaleString()} / ${Number(result.tokens_out).toLocaleString()}`;
+    const cost = result.estimated_cost_per_1000_tasks == null ? 'Not configured' : `R ${Number(result.estimated_cost_per_1000_tasks).toFixed(2)}`;
+    return `<tr><td><b>${escapeHtml(model.display_name)}</b><br><small>${escapeHtml(model.quantisation || '')} · ${escapeHtml(model.runtime || '')}</small></td>
       <td><span class="${result.deterministic_pass?'pass':'fail'}">${result.deterministic_pass?'Pass':'Fail'}</span></td>
-      <td class="score" data-id="${result.run_id}">${[1,2,3,4,5].map(n=>`<button data-score="${n}">${n}</button>`).join('')}</td>
-      <td>${result.latency_ms.toLocaleString()} ms</td><td>${result.tokens_in.toLocaleString()} / ${result.tokens_out.toLocaleString()}</td>
-      <td>R ${result.estimated_cost_per_1000_tasks.toFixed(2)}</td><td>${result.sovereignty_note}</td></tr>`;
+      <td><span class="${status==='pending_human_review'?'pending':status==='demo_only'?'pending':status}">${decisionLabel(status)}</span></td>
+      <td class="score" data-id="${escapeHtml(result.run_id)}">${[1,2,3,4,5].map(number=>`<button type="button" aria-label="Score ${number}" data-score="${number}" class="${result.human_quality_score===number?'active':''}">${number}</button>`).join('')}</td>
+      <td>${escapeHtml(latency)}</td><td>${escapeHtml(tokens)}</td><td>${escapeHtml(cost)}</td><td>${escapeHtml(result.sovereignty_note)}</td></tr>`;
   }).join('');
   body.querySelectorAll('.score button').forEach(button => button.addEventListener('click', scoreResult));
+  updateSummary(task);
+}
+
+function updateSummary(task) {
   const passed = results.filter(item => item.deterministic_pass);
-  document.querySelector('#pass-rate').textContent = `${Math.round(passed.length/results.length*100)}%`;
-  document.querySelector('#best-model').textContent = passed.length ? (models.find(model=>model.id===passed.sort((a,b)=>a.estimated_cost_per_1000_tasks-b.estimated_cost_per_1000_tasks||a.latency_ms-b.latency_ms)[0].model_id)?.display_name || '—') : 'No route';
-  document.querySelector('#fastest').textContent = `${Math.min(...results.map(item=>item.latency_ms)).toLocaleString()} ms`;
+  const best = logic.selectBestEligible(results);
+  const pending = results.some(item => logic.gateStatus(item) === 'pending_human_review');
+  const demoOnly = results.some(item => logic.gateStatus(item) === 'demo_only');
+  document.querySelector('#pass-rate').textContent = results.length ? `${Math.round(passed.length/results.length*100)}%` : '—';
+  document.querySelector('#best-model').textContent = best ? (models.find(model=>model.id===best.model_id)?.display_name || best.model_id) : pending ? 'Awaiting review' : demoOnly ? 'Demo only' : 'No eligible route';
+  const latencies = results.map(item=>item.latency_ms).filter(value=>value != null);
+  document.querySelector('#fastest').textContent = latencies.length ? `${Math.min(...latencies).toLocaleString()} ms` : 'Not reported';
   document.querySelector('#data-control').textContent = task.data_classification;
 }
 
 async function scoreResult(event) {
-  const cell = event.target.closest('.score'), score = Number(event.target.dataset.score);
-  cell.querySelectorAll('button').forEach(button => button.classList.toggle('active',Number(button.dataset.score)===score));
-  const result = results.find(item => item.run_id === cell.dataset.id); if (result) result.human_quality_score = score;
-  if (apiReady) await fetch(`/api/runs/${cell.dataset.id}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({score})});
+  const reviewer = document.querySelector('#reviewer-input').value.trim();
+  if (!reviewer) {
+    alert('Enter a reviewer name or staff ID before you record a human score.');
+    document.querySelector('#reviewer-input').focus();
+    return;
+  }
+  const cell = event.target.closest('.score');
+  const score = Number(event.target.dataset.score);
+  const result = results.find(item => item.run_id === cell.dataset.id);
+  try {
+    if (apiReady) {
+      const response = await fetch(`/api/runs/${cell.dataset.id}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({score,reviewer})});
+      if (!response.ok) throw new Error((await response.json()).error || 'Review failed');
+    }
+    result.human_quality_score = score;
+    result.reviewer = reviewer;
+    result.reviewed_at = new Date().toISOString();
+    result.gate_status = logic.gateStatus(result);
+    renderResults(tasks.find(item => item.id === result.task_id));
+  } catch (error) {
+    alert(error.message);
+  }
 }
 
 function exportCsv() {
   if (!results.length) return;
-  const fields=['task_id','model_id','deterministic_pass','human_quality_score','latency_ms','tokens_in','tokens_out','estimated_cost_per_1000_tasks','data_classification','sovereignty_note'];
-  const escape=value=>`"${String(value??'').replaceAll('"','""')}"`;
-  const csv=[fields.join(','),...results.map(row=>fields.map(field=>escape(row[field])).join(','))].join('\n');
-  const link=document.createElement('a'); link.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); link.download=`tessera-model-gate-${Date.now()}.csv`; link.click(); URL.revokeObjectURL(link.href);
+  const fields = [
+    'evaluation_id','run_id','created_at','execution_mode','execution_status','benchmark_version','model_catalog_version',
+    'task_id','prompt_version','department','team','business_value','process','task_class','model_id','provider_model_id',
+    'quantisation','runtime','hardware','license','registry_source','artifact_digest','deterministic_pass','gate_status',
+    'human_quality_score','reviewer','reviewed_at','latency_ms','tokens_in','tokens_out','estimated_cost_per_1000_tasks',
+    'data_classification','sovereignty_note'
+  ];
+  const csv = [fields.join(','), ...results.map(row => fields.map(field => logic.csvCell(field === 'gate_status' ? logic.gateStatus(row) : row[field])).join(','))].join('\n');
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  link.download = `tessera-model-gate-${Date.now()}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
-document.querySelector('#run-button').addEventListener('click',runBenchmark);
-document.querySelector('#export-button').addEventListener('click',exportCsv);
+taskSelect.addEventListener('change', updateTaskContext);
+document.querySelector('#run-button').addEventListener('click', runBenchmark);
+document.querySelector('#export-button').addEventListener('click', exportCsv);
 loadCatalogs();

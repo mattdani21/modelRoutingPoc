@@ -42,6 +42,26 @@ pub fn grade(spec: &GraderSpec, answer: &str) -> Result<(bool, String)> {
                 },
             ))
         }
+        GraderSpec::JsonEquals { expected } => {
+            let actual: Value = serde_json::from_str(answer).context("The answer is not valid JSON")?;
+            let pass = &actual == expected;
+            Ok((pass, format!("Expected JSON value match: {pass}")))
+        }
+        GraderSpec::ExactLines { expected, ignore_order } => {
+            let mut actual: Vec<String> = answer
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty())
+                .map(str::to_owned)
+                .collect();
+            let mut expected = expected.clone();
+            if *ignore_order {
+                actual.sort();
+                expected.sort();
+            }
+            let pass = actual == expected;
+            Ok((pass, format!("Exact line match: {pass}")))
+        }
     }
 }
 
@@ -59,5 +79,22 @@ mod tests {
     fn json_fields_rejects_missing_field() {
         let spec = GraderSpec::JsonFields { fields: vec!["risk".into(), "action".into()] };
         assert!(!grade(&spec, r#"{"risk":"low"}"#).unwrap().0);
+    }
+
+    #[test]
+    fn json_equals_rejects_correct_fields_with_wrong_values() {
+        let spec = GraderSpec::JsonEquals {
+            expected: serde_json::json!({"risk":"high","action":"correct"}),
+        };
+        assert!(!grade(&spec, r#"{"risk":"low","action":"ignore"}"#).unwrap().0);
+    }
+
+    #[test]
+    fn exact_lines_rejects_false_positive_lines() {
+        let spec = GraderSpec::ExactLines {
+            expected: vec!["ERROR one".into(), "ERROR two".into()],
+            ignore_order: false,
+        };
+        assert!(!grade(&spec, "ERROR one\nERROR wrong\nERROR two").unwrap().0);
     }
 }
