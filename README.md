@@ -59,6 +59,14 @@ the mode to live. See the control sections below.
 You can also open `web/index.html` directly.
 The page will use standalone demo data when the Rust service is not available.
 
+## Offline demo
+
+`web/demo.html` is a single self-contained file for a pitch or backup demo.
+Open it directly in a browser. It needs no server, no model endpoint, and no
+network. It uses synthetic data only and mirrors the dashboard and the gate
+logic, including champion and challenger routing, human review, and the
+evidence ledger export. A demo run can only reach the `demo_only` decision.
+
 ## Access control
 
 The API is open when `config/access.yaml` is absent. This is only safe on
