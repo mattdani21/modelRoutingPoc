@@ -56,6 +56,14 @@ pub fn validate(benchmarks: &BenchmarkCatalog, models: &ModelCatalog) -> Result<
         if model.approved_for_live && model.artifact_digest.is_none() {
             anyhow::bail!("Live-approved model {} must have an artifact digest", model.id);
         }
+        let has_price = model.input_cost_per_million.is_some() || model.output_cost_per_million.is_some();
+        let has_basis = model.cost_basis.as_deref().map(str::trim).is_some_and(|basis| !basis.is_empty());
+        if has_price && !has_basis {
+            anyhow::bail!(
+                "Model {} has a token price but no cost_basis. Record how the price was set, or use null prices.",
+                model.id
+            );
+        }
     }
     Ok(())
 }

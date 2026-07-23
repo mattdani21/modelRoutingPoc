@@ -1,0 +1,18 @@
+# Approved champion per task class.
+# A challenger is any other model. The control plane tags each run with champion
+# status and flags a challenger that regresses against the champion in the same
+# evaluation. Promotion is not automatic: the plan requires two consecutive
+# passing runs and an owner's approval before a champion changes here.
+champions:
+  - task_class: controlled_reasoning
+    model_id: qwen36-27b-q8
+    since: "2026-07-20"
+  - task_class: structured_triage
+    model_id: qwen36-27b-q8
+    since: "2026-07-20"
+  - task_class: test_design
+    model_id: qwen36-27b-q8
+    since: "2026-07-20"
+  - task_class: log_extraction
+    model_id: qwen36-27b-q8
+    since: "2026-07-20"

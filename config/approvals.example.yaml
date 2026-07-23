@@ -1,0 +1,15 @@
+# Counter-signed live approvals template.
+#
+# Copy this file to config/approvals.yaml. A model may only run against a live
+# endpoint when it is marked approved_for_live in config/models.yaml AND a
+# matching record here counter-signs the exact artifact digest. Keeping the
+# approval in a second file enforces separation of duties: editing the model
+# catalog alone cannot promote a model to live.
+#
+# The artifact_digest must equal the digest declared for the model in
+# config/models.yaml. Re-approve after any artifact change.
+approvals:
+  - model_id: gpt-oss-20b-local
+    artifact_digest: "sha256:replace-with-the-deployed-artifact-digest"
+    approver: "Named model risk owner"
+    approved_at: "2026-07-22T10:00:00Z"

@@ -74,6 +74,11 @@ pub struct ModelConfig {
     pub hardware: String,
     pub input_cost_per_million: Option<f64>,
     pub output_cost_per_million: Option<f64>,
+    /// How the price above was established (for example "vendor price list
+    /// 2026-07" or "measured on 1x RTX 6000, 2026-07-22"). `None` means the
+    /// cost is not yet configured; the price fields must then also be `None`.
+    #[serde(default)]
+    pub cost_basis: Option<String>,
     pub license: String,
     pub registry_source: String,
     pub artifact_digest: Option<String>,
@@ -88,6 +93,17 @@ pub struct StartRunRequest {
     pub model_ids: Vec<String>,
     #[serde(default)]
     pub demo: bool,
+    /// How many times to run each task and model pair. Repeating a stochastic
+    /// case exposes variance; the worst result should decide eligibility.
+    /// Defaults to one and is capped at five for the POC.
+    #[serde(default)]
+    pub repetitions: Option<u32>,
+}
+
+impl StartRunRequest {
+    pub fn repetition_count(&self) -> u32 {
+        self.repetitions.unwrap_or(1).clamp(1, 5)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -143,10 +159,26 @@ pub struct RunResult {
     pub tokens_out: Option<u64>,
     #[serde(default)]
     pub estimated_cost_per_1000_tasks: Option<f64>,
+    #[serde(default)]
+    pub cost_basis: Option<String>,
+    /// One-based repetition index within the evaluation for this task and model.
+    #[serde(default = "one")]
+    pub repetition: u32,
+    /// True when this model is the recorded champion for the task class.
+    #[serde(default)]
+    pub is_champion: bool,
+    /// True when a challenger failed a case that the champion passed in the same
+    /// evaluation. A regression blocks promotion regardless of cost.
+    #[serde(default)]
+    pub regressed_vs_champion: bool,
     pub data_classification: DataClassification,
     pub sovereignty_note: String,
     #[serde(default)]
     pub response_preview: Option<String>,
+}
+
+fn one() -> u32 {
+    1
 }
 
 #[derive(Clone, Debug, Deserialize)]

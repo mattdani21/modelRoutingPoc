@@ -65,6 +65,7 @@ models:
     hardware: Provider managed
     input_cost_per_million: 2.0 # Illustrative. Replace this value before a real run.
     output_cost_per_million: 10.0 # Illustrative. Replace this value before a real run.
+    cost_basis: Illustrative placeholder rate. Replace with the contracted gateway price before any live run.
     license: Provider contract required
     registry_source: Approved company AI gateway
     artifact_digest: null

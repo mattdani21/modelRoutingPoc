@@ -2,3 +2,6 @@
 *.db
 .env
 ledger-*.csv
+# Live secrets: never commit real tokens or approvals.
+config/access.yaml
+config/approvals.yaml

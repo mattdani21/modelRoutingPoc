@@ -51,8 +51,14 @@ struct Usage {
     completion_tokens: u64,
 }
 
+/// Build the chat completions URL for an OpenAI-compatible base URL, tolerating
+/// a trailing slash.
+pub fn chat_url(base_url: &str) -> String {
+    format!("{}/chat/completions", base_url.trim_end_matches('/'))
+}
+
 pub async fn call_model(client: &Client, model: &ModelConfig, task: &BenchmarkTask) -> Result<ModelAnswer> {
-    let url = format!("{}/chat/completions", model.base_url.trim_end_matches('/'));
+    let url = chat_url(&model.base_url);
     let body = ChatRequest {
         model: &model.model,
         messages: vec![
@@ -108,4 +114,19 @@ pub fn demo_answer(task: &BenchmarkTask, model_id: &str, model_index: usize) -> 
         tokens_in: Some(180 + task.prompt.len() as u64 / 4),
         tokens_out: Some(70 + model_index as u64 * 9),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chat_url_appends_the_completions_path() {
+        assert_eq!(chat_url("http://127.0.0.1:11434/v1"), "http://127.0.0.1:11434/v1/chat/completions");
+    }
+
+    #[test]
+    fn chat_url_tolerates_a_trailing_slash() {
+        assert_eq!(chat_url("http://127.0.0.1:11434/v1/"), "http://127.0.0.1:11434/v1/chat/completions");
+    }
 }

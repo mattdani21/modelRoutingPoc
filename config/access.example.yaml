@@ -1,0 +1,24 @@
+# Access control template.
+#
+# Copy this file to config/access.yaml and set real tokens to enforce
+# authentication. While config/access.yaml is absent the API runs OPEN and must
+# be bound to loopback only. As soon as one token is defined every /api call
+# except /api/health and /api/session requires a valid token.
+#
+# Roles form a hierarchy:
+#   viewer   - read catalogs, champions, and the evidence ledger
+#   reviewer - viewer plus record human quality scores
+#   operator - reviewer plus start benchmark runs
+#
+# Generate a token with, for example: openssl rand -hex 24
+# Tokens must be at least 16 characters. Do not commit config/access.yaml.
+tokens:
+  - token: "replace-with-a-long-random-operator-token"
+    display_name: "Technical Owner"
+    role: operator
+  - token: "replace-with-a-long-random-reviewer-token"
+    display_name: "Subject Matter Expert"
+    role: reviewer
+  - token: "replace-with-a-long-random-viewer-token"
+    display_name: "Risk and Compliance Observer"
+    role: viewer
